@@ -1,0 +1,381 @@
+
+
+
+## 导入数据
+```{r}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(gridExtra)
+library(corrplot)
+
+wineQW <- read.csv('wineQualityWhites.csv',stringsAsFactors = TRUE,na.strings = c('NA',''))
+wineQW <- wineQW[,-1]
+dim(wineQW)
+str(wineQW)
+```
+
+表中包含4898条记录，去除位于首列的计数列以后，合计12个变量。其中quality为目标变量，其他11个变量依次为固定酸、挥发性酸、柠檬酸、残留糖分、氯化物、游离二氧化硫、总二氧化硫、浓厚度、pH酸碱度、硫酸盐和酒精度，接下来我们将依次探析以上11个变量与目标值quality的关系；
+
+## 缺失值
+
+```{r missing value}
+sapply(wineQW,function(x){sum(is.na(x))})
+```
+
+数据中不存在缺失值
+
+
+## 数据分析
+
+1.Quality
+
+```{r quality}
+ggplot(aes(x=quality),data=wineQW)+geom_bar(stat='count')+labs(title = 'Quality distribution')
+```
+
+```{r quality_level}
+wineQW$quality_level <- cut(wineQW$quality,c(0,4,6,9),labels=c('Low','Mid','High'))
+ggplot(aes(x=quality_level),data=wineQW)+geom_bar(stat='count')+labs(title = 'Quality_level distribution')
+```
+
+质量接近正态分布，评分为5和6的酒占绝对多数，而评分低于5分和高于7分的酒较少，数量逐级向两侧减少；我们以4分和7分为界，划
+分出低、中、高品质的酒，可以清楚的看到，中等品质的酒占比最高；
+
+
+2.fixed.acidity
+
+```{r fixed.acidity}
+wineQW$quality <- as.factor(wineQW$quality)
+summary(wineQW$fixed.acidity)
+
+p1 <- ggplot(aes(x=quality,y=fixed.acidity),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Fixed.acidity vs Quality')
+
+p2 <- ggplot(aes(x=quality_level,y=fixed.acidity),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Fixed.acidity vs Quality_level')
+
+p3 <- ggplot(aes(x=fixed.acidity),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(3.5,14.5))+
+  labs(title = 'Fixed.acidity distribution')
+
+grid.arrange(p1,p2,p3,nrow=1)
+```
+
+固定酸值集中在值6.8左右，近似正态分布;但从箱线图看来，按照分类，从低分到高分，固定酸的均值和中位数逐步下降，但评分为9的酒固定酸度突然提升，具体均值变化与品质的变化并不存在明显的线性关系。
+
+
+3.volatile.acidity
+
+```{r}
+summary(wineQW$volatile.acidity)
+
+p4 <- ggplot(aes(x=quality,y=volatile.acidity),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Volatile.acidity vs Quality')
+
+p5 <- ggplot(aes(x=quality_level,y=volatile.acidity),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Volatile.acidity vs Quality_level')
+
+p6 <- ggplot(aes(x=volatile.acidity),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(0.05,1.5))+
+  labs(title = 'Volatile.acidity distribution')
+
+grid.arrange(p4,p5,p6,nrow=1)
+```
+
+分布图左偏，箱线图中按照高低分划分中，随着等级上升挥发性酸均值有明显的下降，但具体看明细数据，评分4和评分7-9都有上涨的趋势，随着评分的上涨，挥发性酸的增长并不明显；
+
+
+4.citric.acid
+
+```{r}
+summary(wineQW$citric.acid)
+
+p7 <- ggplot(aes(x=quality,y=citric.acid),data=wineQW[wineQW$citric.acid<1.1,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Citric.acid vs Quality')
+
+p8 <- ggplot(aes(x=quality_level,y=citric.acid),data=wineQW[wineQW$citric.acid<1.1,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'Citric.acid vs Quality_level')
+
+p9 <- ggplot(aes(x=citric.acid),data=wineQW)+
+  geom_bar(stat='count')+
+  labs(title = 'Citric.acid distribution')
+
+grid.arrange(p7,p8,p9,nrow=1)
+
+```
+
+从箱线图可以发现，无论是评分等级还是具体明细，与柠檬酸的酸度都没有明显的相关关系；
+
+
+5.residual.sugar
+
+```{r}
+summary(wineQW$residual.sugar)
+
+p10 <- ggplot(aes(x=quality,y=residual.sugar),data=wineQW[wineQW$residual.sugar<30,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'residual.sugar vs Quality')
+
+p11 <- ggplot(aes(x=quality_level,y=residual.sugar),data=wineQW[wineQW$residual.sugar<30,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'residual.sugar vs Quality_level')
+
+p12 <- ggplot(aes(x=residual.sugar),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(0.5,66))+
+  labs(title = 'residual.sugar distribution')
+
+grid.arrange(p10,p11,p12,nrow=1)
+
+```
+
+从箱线图可以发现，无论是评分等级还是具体明细，与残留糖分都没有明显的相关性；
+
+6.chlorides
+
+```{r}
+summary(wineQW$chlorides)
+
+p13 <- ggplot(aes(x=quality,y=chlorides),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'chlorides vs Quality')
+
+p14 <- ggplot(aes(x=quality_level,y=chlorides),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'chlorides vs Quality_level')
+
+p15 <- ggplot(aes(x=chlorides),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(0,0.4))+
+  labs(title = 'chlorides distribution')
+
+grid.arrange(p13,p14,p15,nrow=1)
+
+by(wineQW$chlorides,wineQW$quality,mean)
+```
+
+氯化物集中在0.05左右；从图中看出，品质的均值上与氯化物含量保持着弱相关，随着品质越高氯化物均值越小；
+
+7.free.sulfur.dioxide
+
+```{r}
+summary(wineQW$free.sulfur.dioxide)
+
+p16 <- ggplot(aes(x=quality,y=free.sulfur.dioxide),data=wineQW[wineQW$free.sulfur.dioxide<150,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'free.sulfur.dioxide vs Quality')
+
+p17 <- ggplot(aes(x=quality_level,y=free.sulfur.dioxide),data=wineQW[wineQW$free.sulfur.dioxide<150,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'free.sulfur.dioxide vs Quality_level')
+
+p18 <- ggplot(aes(x=free.sulfur.dioxide),data=wineQW)+
+  geom_bar(stat='count')+
+  labs(title = 'free.sulfur.dioxide distribution')
+
+grid.arrange(p16,p17,p18,nrow=1)
+
+```
+
+从箱线图可以发现，无论是评分等级还是具体明细，与游离二氧化硫含量都没有明显的相关性；
+
+8.total.sulfur.dioxide
+
+```{r}
+summary(wineQW$total.sulfur.dioxide)
+
+p19 <- ggplot(aes(x=quality,y=total.sulfur.dioxide),data=wineQW[wineQW$total.sulfur.dioxide<350,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'total.sulfur.dioxide vs Quality')
+
+p20 <- ggplot(aes(x=quality_level,y=total.sulfur.dioxide),data=wineQW[wineQW$total.sulfur.dioxide<350,])+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'total.sulfur.dioxide vs Quality_level')
+
+p21 <- ggplot(aes(x=total.sulfur.dioxide),data=wineQW)+
+  geom_bar(stat='count')+
+  labs(title = 'total.sulfur.dioxide distribution')
+
+grid.arrange(p19,p20,p21,nrow=1)
+```
+
+从箱线图可以发现，无论是评分等级还是具体明细，与总二氧化硫含量都没有明显的相关性；
+
+9.density
+
+```{r}
+summary(wineQW$density)
+
+p22 <- ggplot(aes(x=quality,y=density),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'density vs Quality')+
+  scale_y_continuous(limits = c(0.98,1.005))
+
+p23 <- ggplot(aes(x=quality_level,y=density),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'density vs Quality_level')+
+  scale_y_continuous(limits = c(0.98,1.005))
+
+p24 <- ggplot(aes(x=density),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(0.98,1.04))+
+  labs(title = 'density distribution')
+
+grid.arrange(p22,p23,p24,nrow=1)
+```
+
+删除密度中2个较为明显的离群值后，我们可以看到密度和评分呈负相关趋势；
+
+
+10.pH
+
+```{r}
+summary(wineQW$pH)
+
+p25 <- ggplot(aes(x=quality,y=pH),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'pH vs Quality')
+
+p26 <- ggplot(aes(x=quality_level,y=pH),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'pH vs Quality_level')
+
+p27 <- ggplot(aes(x=pH),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(2.71,3.83))+
+  labs(title = 'pH distribution')
+
+grid.arrange(p25,p26,p27,nrow=1)
+```
+
+pH值分布图近似正态分布，pH值与评分之间存在弱的正相关系，品质越高的酒，趋向pH值会更高；
+
+11.sulphates
+
+```{r}
+summary(wineQW$sulphates)
+
+p28 <- ggplot(aes(x=quality,y=sulphates),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'sulphates vs Quality')
+
+p29 <- ggplot(aes(x=quality_level,y=sulphates),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'sulphates vs Quality_level')
+
+p30 <- ggplot(aes(x=sulphates),data=wineQW)+
+  geom_bar(stat='count')+
+  labs(title = 'sulphates distribution')
+
+grid.arrange(p28,p29,p30,nrow=1)
+```
+
+从具体的评分来看，硫酸盐含量与评分并没有相关关系，在评分8,9硫酸盐含量下降，但评分等级上的轻微上升会导致硫酸盐含量的轻微上涨；
+
+12.alcohol
+
+```{r}
+summary(wineQW$alcohol)
+
+p31 <- ggplot(aes(x=quality,y=alcohol),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'alcohol vs Quality')
+
+p32 <- ggplot(aes(x=quality_level,y=alcohol),data=wineQW)+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom = 'point',color='red',shape=4)+
+  labs(title = 'alcohol vs Quality_level')
+
+p33 <- ggplot(aes(x=alcohol),data=wineQW)+
+  geom_bar(stat='count')+
+  scale_x_continuous(limits = c(7,15))+
+  labs(title = 'alcohol distribution')
+
+grid.arrange(p31,p32,p33,nrow=1)
+```
+
+无论具体明细评分还是评分等级，酒精含量和评分都呈现明显的正相关关系；
+
+## 相关性分析
+
+```{r}
+wineQW$quality <- as.integer(wineQW$quality)
+cor(wineQW[,c(1:12)])
+corrplot(cor(wineQW[,c(1:12)]))
+```
+
+我们将来看看上面分析到的11个变量和评分之间相关性系数到底有多大，从数字上看证实他们与评分之间是否存在相关性？
+1，对于quality，相关性大于0.3的仅有alcohol含量(0.436) 和 density(-0.307)；
+2，density 和 alcohol,residual.sugar，total.sulfur.dioxide 都存在明显的相关关系；
+3，pH 和 fixed.acidity 相关性系数-0.426,pH越小说明溶液偏酸性，这与固定酸度的增加是相契合的；
+4，酸度(fixed.acidity,volatile.acidity,citric.acid)和初步分析结论一致，与评分不存在相关性，彼此之间也没有相关关系，而free.sulfur.dioxide 和 total.sulfur.dioxide 存在正相关关系；
+
+## 其他变量的相关性
+
+1,density 与 alcohol
+```{r}
+ggplot(aes(x=density,y=alcohol),data=wineQW[wineQW$density<1.01,])+geom_point(aes(color=quality_level),position = 'jitter')+scale_color_brewer(type='seq')+labs(title = 'density vs alcohol')
+```
+
+alcohol 和 density 对 quality均有相关性，这就解释了alcohol与density之间的相关，虽然两者对quality相关性的绝对值均在0.3-0.5之间，我们还是可以看到，alcohol与density存在明显的负相关关系，伴随着quality_level的提升，白葡萄酒品质的提升伴随着随着alcohol的增高与density的下降；
+
+2,density 与 residual.sugar
+```{r}
+ggplot(aes(x=density,y=residual.sugar),data=wineQW[wineQW$density<1.01,])+geom_point(aes(color=quality_level),position = 'jitter')+scale_color_brewer(type='seq')+labs(title = 'density vs residual.sugar')
+```
+
+density与residual.sugar存在极强的正相关关系，这也许说明了残留糖分是决定白葡萄酒密度的主要因素，残留糖分越多密度酒越大；从之前的分析所得，白葡萄酒的品质并不与残留糖分相关，但从白葡萄酒品质与密度的关系和上图推断，对于大部分高品质的酒而言，在密度相同且较低的条件下，糖分越少代表品质酒越好；
+
+3,density 与 total.sulfur.dioxide
+```{r}
+ggplot(aes(x=density,y=total.sulfur.dioxide),data=wineQW[wineQW$density<1.01,])+geom_point(aes(color=quality_level),position = 'jitter')+scale_color_brewer(type='seq')+labs(title = 'density vs total.sulfur.dioxide')
+```
+
+density与total.sulfur.dioxide的相关性系数为0.53，伴随着total.sulfur.dioxide(总二氧化硫)的增大，密度(density)也随着增大,且高品质的白葡萄酒大部分分布在低密度低二氧化硫总量的位置；除了残留糖分,二氧化硫的含量也影响着白葡萄酒的密度;
+
+
+
+## 反思
+1.收集更多数据，需要更多人参与评分：经过对手头上4898条数据进行分析，我们发现与quality与其他11个变量中仅与密度和酒精存在相关关系，但相关关系都不强。也许我们需要更多的样本来确立相关关系，或者请更多的人参与综合评分，三位专家人数偏少，也不能排除这三位专家对部分葡萄酒存在共同的偏好；
+2.评分数据不平衡，且我对白葡萄酒等级的划分并不恰到：首先我们可以看到提供的数据中，低分和高分的白葡萄酒总量远低于中等质量的葡萄酒，并不否认这样的打分符合正态分布的，但也存在数据有偏颇的可能性；再者我们主观的将低于4级及以下的酒化为低等，5、6级的酒为中等，7级及以上的酒为高等，这样的分级是基于此次调查，区别与专业分级制度，这会使我们在探索相关性和分类时都会产生误差；
+3.从本次分析过程中，有几点提议我想自己可以多考虑和时间
+ 3.1 异常值的处理；因为异常值较少，本次我在分析相关性是并没剔除变种中异常值，这样也许会影响分析结果,这是必要的操作；
+ 3.2 辅助值得设定；本次设置了quality_level对quality进行的主观划分，这样的划分是按照quality分布图与打分进行划分，但不一定就是最合理的划分方式，也不一定能得到预期的目的。后期在设置辅助值上有有摇摆时，可以通过尝试多种方案；
+
+
+
+
+
+
+
+
